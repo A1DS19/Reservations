@@ -4,3 +4,4 @@ export * from './auth/index';
 export * from './constants/index';
 export * from './decorators/index';
 export * from './dto/index';
+export * from './models/index';

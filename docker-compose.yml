@@ -47,7 +47,9 @@ services:
     volumes:
       - .:/usr/src/app
 
-  mongo:
-    image: mongo
+  mysql:
+    image: mysql
     ports:
-      - 27017:27017
+      - 3306:3306
+    env_file:
+      - .env
