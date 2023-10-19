@@ -7,6 +7,7 @@ import { NotifyEmailDto } from './dto/notify-email.dto';
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  //Use EventPattern when you're working with event-driven architectures and you don't require a response.
   @UsePipes(new ValidationPipe())
   @EventPattern('notify_email')
   async notifyEmail(@Payload() data: NotifyEmailDto) {

@@ -2,7 +2,7 @@ import { Controller, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthenticationService } from './authentication.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { UserDocument } from './users/models/user.schema';
+import { User } from '@app/common/models/user.entity';
 import { Response } from 'express';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -14,13 +14,14 @@ export class AuthenticationController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(
-    @CurrentUser() user: UserDocument,
+    @CurrentUser() user: User,
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authenticationService.login(user, res);
     res.send(user);
   }
 
+  //Use MessagePattern when you need to handle a request and provide a response, similar to a traditional function call but over a network.
   @UseGuards(JwtAuthGuard)
   @MessagePattern('authenticate')
   async authenticate(@Payload() payload: any) {
