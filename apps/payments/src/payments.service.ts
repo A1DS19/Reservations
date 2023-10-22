@@ -1,12 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Stripe } from 'stripe';
-import { ClientProxy } from '@nestjs/microservices';
-import { NOTIFICATIONS_SERVICE } from '@app/common';
+import { ClientGrpc } from '@nestjs/microservices';
+import {
+  NOTIFICATIONS_SERVICE_NAME,
+  NotificationsServiceClient,
+} from '@app/common';
 import { PaymentsCreateChargeDto } from './dto/payments-create.dto';
 
 @Injectable()
 export class PaymentsService {
+  private notificationsService: NotificationsServiceClient;
+
   private readonly stripe = new Stripe(
     this.configService.get('STRIPE_SECRET_KEY'),
     { apiVersion: '2023-08-16' },
@@ -14,8 +19,8 @@ export class PaymentsService {
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject(NOTIFICATIONS_SERVICE)
-    private readonly notificationsService: ClientProxy,
+    @Inject(NOTIFICATIONS_SERVICE_NAME)
+    private readonly client: ClientGrpc,
   ) {}
 
   // https://stripe.com/docs/api/payment_methods/create?lang=node
@@ -24,7 +29,12 @@ export class PaymentsService {
     // not for testing
     // const paymentMethod = await this.stripe.paymentMethods.create({
     //   type: 'card',
-    //   card,
+    //   card: {
+    //     number: card.number,
+    //     exp_month: card.expMonth,
+    //     exp_year: card.expYear,
+    //     cvc: card.cvc,
+    // }
     // });
 
     const paymentIntent = await this.stripe.paymentIntents.create({
@@ -36,12 +46,21 @@ export class PaymentsService {
       return_url: 'http://localhost:3200', // for testing
     });
 
-    this.notificationsService.emit('notify_email', {
-      email,
-      text: `Your reservation has been created, you have been charged $${amount} on your card ending in ${card.number.slice(
-        -4,
-      )}`,
-    });
+    if (!this.notificationsService) {
+      this.notificationsService = this.client.getService(
+        NOTIFICATIONS_SERVICE_NAME,
+      );
+    }
+
+    this.notificationsService
+      .notifyEmail({
+        email,
+        text: `Your reservation has been created, you have been charged $${amount} on your card ending in ${card.number.slice(
+          -4,
+        )}`,
+      })
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      .subscribe(() => {});
 
     return paymentIntent;
   }
