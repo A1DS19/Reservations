@@ -8,9 +8,21 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AUTH_SERVICE, PAYMENTS_SERVICE } from '@app/common/constants/services';
+import { GraphQLModule } from '@nestjs/graphql';
+import {
+  ApolloFederationDriverConfig,
+  ApolloFederationDriver,
+} from '@nestjs/apollo';
+import { ReservationsResolver } from './reservations.resolver';
 
 @Module({
   imports: [
+    GraphQLModule.forRoot<ApolloFederationDriverConfig>({
+      driver: ApolloFederationDriver,
+      autoSchemaFile: {
+        federation: 2,
+      },
+    }),
     LoggerModule,
     DatabaseModule,
     ConfigModule.forRoot({
@@ -50,6 +62,10 @@ import { AUTH_SERVICE, PAYMENTS_SERVICE } from '@app/common/constants/services';
     ]),
   ],
   controllers: [ReservationsController],
-  providers: [ReservationsService, ReservationsRepository],
+  providers: [
+    ReservationsService,
+    ReservationsRepository,
+    ReservationsResolver,
+  ],
 })
 export class ReservationsModule {}

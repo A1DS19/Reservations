@@ -1,10 +1,13 @@
 import { Column, Entity, JoinTable, ManyToMany } from 'typeorm';
 import { AbstractEntity } from '../database';
 import { Role } from './role.entity';
+import { Field, ObjectType } from '@nestjs/graphql';
 
 @Entity()
+@ObjectType()
 export class User extends AbstractEntity<User> {
   @Column()
+  @Field()
   email: string;
 
   @Column()
@@ -14,5 +17,6 @@ export class User extends AbstractEntity<User> {
     cascade: true,
   })
   @JoinTable()
+  @Field(() => [Role])
   roles?: Role[];
 }

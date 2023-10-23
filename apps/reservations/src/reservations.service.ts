@@ -1,4 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { ReservationsRepository } from './reservations.repository';
@@ -19,23 +23,28 @@ export class ReservationsService {
     createReservationDto: CreateReservationDto,
     { email, id: userId }: User,
   ) {
-    return await this.paymentsServiceClient
-      .send('createCharge', {
+    try {
+      const chargeData = {
         ...createReservationDto.charge,
         email,
-      })
-      .pipe(
-        map(async (res) => {
-          const reservation = new Reservation({
-            ...createReservationDto,
-            timestamp: new Date(),
-            userId,
-            invoiceId: res.id,
-          });
+      };
 
-          return await this.reservationsRepository.create(reservation);
-        }),
-      );
+      const result = await this.paymentsServiceClient
+        .send('createCharge', chargeData)
+        .toPromise();
+
+      const reservation = new Reservation({
+        ...createReservationDto,
+        timestamp: new Date(),
+        userId,
+        invoiceId: result.id,
+      });
+
+      return await this.reservationsRepository.create(reservation);
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      throw new InternalServerErrorException('Internal server error');
+    }
   }
 
   async findAll() {
