@@ -1,70 +1,71 @@
-import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose';
-import { AbstractDocument } from './abstract.schema';
+import { AbstractEntity } from './abstract.entity';
 import { Logger, NotFoundException } from '@nestjs/common';
+import {
+  DeleteResult,
+  EntityManager,
+  FindOptionsRelations,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
-export abstract class AbstractRepository<TDocument> extends AbstractDocument {
+export abstract class AbstractRepository<T extends AbstractEntity<T>> {
   protected abstract readonly logger: Logger;
-  constructor(protected readonly model: Model<TDocument>) {
-    super();
-  }
 
-  async create(document: Omit<TDocument, '_id'>): Promise<TDocument> {
-    const createdDocument = new this.model({
-      ...document,
-      _id: new Types.ObjectId(),
-    });
+  constructor(
+    private readonly entityRepository: Repository<T>,
+    private readonly entityManager: EntityManager,
+  ) {}
 
-    return (await createdDocument.save()).toJSON();
+  async create(entity: T): Promise<T> {
+    return this.entityManager.save(entity);
   }
 
   async findOne(
-    filterQuery: FilterQuery<TDocument>,
-    validateExistance = true,
-  ): Promise<TDocument> {
-    const document = await this.model.findOne(filterQuery, {}, { lean: true });
+    where: FindOptionsWhere<T>,
+    relations: FindOptionsRelations<T> = null,
+    validateExistence = true,
+  ): Promise<T> {
+    const entity = await this.entityRepository.findOne({
+      where,
+      relations,
+    });
 
-    if (!document && validateExistance) {
+    if (!entity && validateExistence) {
       this.logger.warn(
-        `Document not found in ${this.model.modelName} collection with filter ${filterQuery}`,
+        `Document not found in ${this.entityRepository.target} collection with filter ${where}`,
       );
       throw new NotFoundException('Document not found');
     }
 
-    return document as TDocument;
+    return entity;
   }
 
   async findOneAndUpdate(
-    filterQuery: FilterQuery<TDocument>,
-    update: UpdateQuery<TDocument>,
-  ) {
-    const document = await this.model.findOneAndUpdate(filterQuery, update, {
-      lean: true,
-      new: true,
-    });
+    where: FindOptionsWhere<T>,
+    partialEntity: QueryDeepPartialEntity<T>,
+    relations: FindOptionsRelations<T> = null,
+  ): Promise<T> {
+    const updateResult = await this.entityRepository.update(
+      where,
+      partialEntity,
+    );
 
-    if (!document) {
+    if (!updateResult.affected) {
       this.logger.warn(
-        `Document not found in ${this.model.modelName} collection with filter ${filterQuery}`,
+        `Document not found in ${this.entityRepository.target} collection with filter ${where}`,
       );
       throw new NotFoundException('Document not found');
     }
 
-    return document;
+    return await this.findOne(where, relations);
   }
 
-  async find(filterQuery: FilterQuery<TDocument>): Promise<TDocument[]> {
-    return (await this.model.find(
-      filterQuery,
-      {},
-      { lean: true },
-    )) as unknown as TDocument[];
+  async find(where: FindOptionsWhere<T>): Promise<T[]> {
+    return this.entityRepository.findBy(where);
   }
 
-  async findOneAndDelete(
-    filterQuery: FilterQuery<TDocument>,
-  ): Promise<TDocument> {
-    return (await this.model.findOneAndDelete(filterQuery, {
-      lean: true,
-    })) as unknown as TDocument;
+  async findOneAndDelete(where: FindOptionsWhere<T>): Promise<DeleteResult> {
+    return this.entityRepository.delete(where);
   }
 }

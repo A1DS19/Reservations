@@ -9,8 +9,8 @@ import {
 import { AUTH_SERVICE } from '../constants/services';
 import { ClientProxy } from '@nestjs/microservices';
 import { catchError, map, of, tap } from 'rxjs';
-import { UserDto } from '../dto';
 import { Reflector } from '@nestjs/core';
+import { User } from '../models';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -37,12 +37,12 @@ export class JwtAuthGuard implements CanActivate {
         })
         // pipe: https://rxjs.dev/api/operators/pipe pipe is a function that takes as its arguments functions with a single input and a single output and composes them into a chain.
         .pipe(
-          tap((res: UserDto) => {
+          tap((res: User) => {
             if (roles) {
               for (const role of roles) {
-                if (!res.roles?.includes(role)) {
+                if (!res.roles?.map((role) => role.name).includes(role)) {
                   this.logger.error(
-                    `User ${res._id} does not have role ${role}`,
+                    `User ${res.id} does not have role ${role}`,
                     JwtAuthGuard.name,
                   );
                   throw new UnauthorizedException();

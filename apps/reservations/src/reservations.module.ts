@@ -3,23 +3,31 @@ import { ReservationsService } from './reservations.service';
 import { ReservationsController } from './reservations.controller';
 import { DatabaseModule, LoggerModule } from '@app/common';
 import { ReservationsRepository } from './reservations.repository';
-import {
-  ReservationDocument,
-  ReservationSchema,
-} from './models/reservation.schema';
+import { Reservation } from './models/reservation.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AUTH_SERVICE, PAYMENTS_SERVICE } from '@app/common/constants/services';
+import { GraphQLModule } from '@nestjs/graphql';
+import {
+  ApolloFederationDriverConfig,
+  ApolloFederationDriver,
+} from '@nestjs/apollo';
+import { ReservationsResolver } from './reservations.resolver';
 
 @Module({
   imports: [
+    GraphQLModule.forRoot<ApolloFederationDriverConfig>({
+      driver: ApolloFederationDriver,
+      autoSchemaFile: {
+        federation: 2,
+      },
+    }),
     LoggerModule,
     DatabaseModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
-        MONGODB_URI: Joi.string().required(),
         PORT: Joi.number().required(),
         AUTH_SERVICE_HOST: Joi.string().required(),
         AUTH_SERVICE_PORT: Joi.number().required(),
@@ -27,12 +35,7 @@ import { AUTH_SERVICE, PAYMENTS_SERVICE } from '@app/common/constants/services';
         PAYMENTS_SERVICE_PORT: Joi.number().required(),
       }),
     }),
-    DatabaseModule.forFeature([
-      {
-        name: ReservationDocument.name,
-        schema: ReservationSchema,
-      },
-    ]),
+    DatabaseModule.forFeature([Reservation]),
     ClientsModule.registerAsync([
       {
         name: AUTH_SERVICE,
@@ -59,6 +62,10 @@ import { AUTH_SERVICE, PAYMENTS_SERVICE } from '@app/common/constants/services';
     ]),
   ],
   controllers: [ReservationsController],
-  providers: [ReservationsService, ReservationsRepository],
+  providers: [
+    ReservationsService,
+    ReservationsRepository,
+    ReservationsResolver,
+  ],
 })
 export class ReservationsModule {}

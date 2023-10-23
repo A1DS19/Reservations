@@ -2,32 +2,36 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersRepository } from './users.repository';
 import * as bcrypt from 'bcryptjs';
-import { UserDocument } from './models/user.schema';
 import { GetUserDto } from './dto/get-user.dto';
+import { Role, User } from '@app/common';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
   async createUser(createUserDto: CreateUserDto) {
-    const user = await this.usersRepository.findOne(
+    const userExists = await this.usersRepository.findOne(
       {
         email: createUserDto.email,
       },
+      null,
       false,
     );
 
-    if (user) {
+    if (userExists) {
       throw new UnauthorizedException('User already exists');
     }
 
-    return await this.usersRepository.create({
+    const user = new User({
       ...createUserDto,
       password: await bcrypt.hash(createUserDto.password, 10),
+      roles: createUserDto.roles?.map((roleDto) => new Role(roleDto)),
     });
+
+    return await this.usersRepository.create(user);
   }
 
-  async verifyUser(email: string, password: string): Promise<UserDocument> {
+  async verifyUser(email: string, password: string): Promise<User> {
     const user = await this.usersRepository.findOne({ email });
     const passwordValid = await bcrypt.compare(password, user.password);
 
@@ -39,6 +43,10 @@ export class UsersService {
   }
 
   async getUser(getUserDto: GetUserDto) {
-    return this.usersRepository.findOne(getUserDto);
+    return this.usersRepository.findOne({ id: getUserDto.id }, { roles: true });
+  }
+
+  async findAll() {
+    return this.usersRepository.find({});
   }
 }
